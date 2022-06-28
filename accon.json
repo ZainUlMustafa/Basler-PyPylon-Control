@@ -1,0 +1,10 @@
+{
+    "exposure": 10000,
+    "gain": 0,
+    "retrievalTime": 500,
+    "showPid": true,
+    "showLogs": false,
+    "showImage": true,
+    "saveImage": true,
+    "kill": true 
+}
