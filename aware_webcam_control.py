@@ -28,7 +28,6 @@ def main():
         return
     #endif
 
-    count = 0
     while(cap.isOpened):
         try:
             f = open(awcon)
@@ -54,8 +53,6 @@ def main():
         #endtry
 
         _, img = cap.read()
-        print(f"COUNTER {count}")
-        count += 1
 
         if camShowImage:
             cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
