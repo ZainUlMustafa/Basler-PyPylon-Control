@@ -32,6 +32,13 @@ def main():
     cams = []
 
     while len(cams) == 0: 
+        f = open(accon)
+        data = json.load(f)
+        f.close()
+        if data['kill']:
+            os.kill(pid, signal.SIGTERM)
+        #endif
+
         print("Waiting for camera...");
         cams = fetchCameras(camIds)
         print(cams)
