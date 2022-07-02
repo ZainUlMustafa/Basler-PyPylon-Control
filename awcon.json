@@ -1,7 +1,5 @@
 {
-    "exposure": 6000,
-    "gain": 20,
-    "retrievalTime": 500,
+    "cameraIndex": 1,
     "showPid": true,
     "showLogs": false,
     "showImage": true,

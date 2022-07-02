@@ -34,6 +34,7 @@ def main():
     while len(cams) == 0: 
         print("Waiting for camera...");
         cams = fetchCameras(camIds)
+        print(cams)
     #endwhile
 
     converter = bgrConv()
