@@ -4,7 +4,7 @@ This is a specially designed camera booter that runs and auto tries to run camer
 and fetch the required info. It is crash-safe which enables it to revive again and
 again.
 
-ACCON uses accon.json as strategy definer within which camera control properties can
+ACCON uses settingDoc.json as strategy definer within which camera control properties can
 be defined.
 '''
 
@@ -12,35 +12,53 @@ import json
 from operator import itemgetter
 import os
 import signal
+import time
 from pypylon import pylon
 import cv2
 import numpy as np
 
+configDoc = './configs/config.json'
+settingDoc = './configs/setting/accon.json'
+statusDoc = './configs/status/accon.json'
+
 showLogs = False
-accon = './accon.json'
 pid = None
 
 def main():
     global pid; pid = os.getpid()
 
-    if not os.path.exists(accon):
-        print('ACCON config not found!')
+    if not os.path.exists(configDoc):
+        updateStatus(-4)
+        time.sleep(1)
+        return
+    #endif
+
+    if not os.path.exists(settingDoc):
+        updateStatus(-3)
+        time.sleep(1)
         return
     #endif
 
     camIds = ["22730681"]
     cams = []
 
-    while len(cams) == 0: 
-        f = open(accon)
+    updateStatus(1)
+    while len(cams) != len(camIds): 
+        f = open(settingDoc)
         data = json.load(f)
         f.close()
         if data['kill']:
+            updateStatus(5)
             os.kill(pid, signal.SIGTERM)
         #endif
 
-        print("Waiting for camera...");
         cams = fetchCameras(camIds)
+        if len(cams) != len(camIds): 
+            updateStatus(-1)
+            time.sleep(1)
+        else:
+            updateStatus(2)
+        #endif
         print(cams)
     #endwhile
 
@@ -51,10 +69,23 @@ def main():
     cameraToPlay.Open()
     cameraToPlay.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     print(f"{cam.GetSerialNumber()}: [Cameras opened]")
+    updateStatus(3)
 
     while cameraToPlay.IsGrabbing():
         try:
-            f = open(accon)
+            if not os.path.exists(configDoc):
+                updateStatus(-4)
+                time.sleep(1)
+                return
+            #endif
+
+            if not os.path.exists(settingDoc):
+                updateStatus(-3)
+                time.sleep(1)
+                return
+            #endif
+
+            f = open(settingDoc)
             data = json.load(f)
             f.close()
 
@@ -65,6 +96,7 @@ def main():
             #endif
             
             if camKill:
+                updateStatus(5)
                 os.kill(pid, signal.SIGTERM)
             #endif
             
@@ -80,6 +112,7 @@ def main():
             #endif
         except Exception as e:
             print(e)
+            updateStatus(-2)
             buglog("Defaulted. Maybe incorrect ACCON data?")
         #endtry
 
@@ -92,6 +125,8 @@ def main():
                 cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
 
                 if cv2.waitKey(1) & 0xff == ord('q'):
+                    updateStatus(5)
+                    os.kill(pid, signal.SIGTERM)
                     break
                 #endif
             else:
@@ -107,10 +142,42 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
+def imageWriter():
+    ''''''
+#enddef
+
 def buglog(data):
     if showLogs:
         print(f'[CAM LOGS]: {data}')
     #endif
+#enddef
+
+def updateStatus(status):
+    ''''''
+    camStatuses = {
+        5: "Ended",
+        4: "Camera reviving",
+        3: "Camera initiated",
+        2: "Camera found",
+        1: "Waiting for camera",
+        0: "Script started",
+        -1: "Camera not found",
+        -2: "Camera exception",
+        -3: "Setting not found",
+        -4: "Config not found",
+        -999: "Unexpected error"
+    }
+
+    statusData = {
+        'status': status,
+        'message': camStatuses[status],
+    }
+
+    with open(statusDoc, 'w', encoding='utf-8') as f:
+        json.dump(statusData, f, ensure_ascii=False, indent=4)
+    #endwith
+
+    print(statusData)
 #enddef
 
 def fetchCameras(camIds):
@@ -122,7 +189,6 @@ def fetchCameras(camIds):
             #endif
         #endfor
     #endfor
-
     return cams
 #enddef
 
@@ -135,12 +201,14 @@ def bgrConv():
 #enddef
 
 if __name__ == "__main__":
+    updateStatus(0)
     while True:
         try:
             cv2.destroyAllWindows()
             main()
         except:
-            print("Reviving...")
+            # print("Reviving...")
+            updateStatus(4)
         #endtry
     #endwhile
 #endif
