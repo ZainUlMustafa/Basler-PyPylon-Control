@@ -8,9 +8,11 @@ ACCON uses settingDoc.json as strategy definer within which camera control prope
 be defined.
 '''
 
+import hashlib
 import json
 from operator import itemgetter
 import os
+import shutil
 import signal
 import time
 from pypylon import pylon
@@ -26,6 +28,7 @@ showLogs = False
 pid = None
 counter = 0
 prevSetting = None
+configData = None
 
 def main():
     global pid; pid = os.getpid()
@@ -35,6 +38,11 @@ def main():
         time.sleep(1)
         return
     #endif
+
+    global configData
+    f = open(configDoc)
+    configData = json.load(f)
+    f.close()
 
     if not os.path.exists(settingDoc):
         updateStatus(-3)
@@ -97,7 +105,7 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage', 'kill')(data)
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch', 'kill')(data)
                 
             if camPid:
                 print(pid)
@@ -138,6 +146,9 @@ def main():
             image = converter.Convert(grabResult)
             img = image.GetArray()
 
+            dataCollection = f"./data/{configData['proid']}/orig"
+            if camSaveImage: imageWriter(img, dataCollection);
+
             if camShowImage:
                 cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
 
@@ -162,8 +173,37 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(img):
-    ''''''
+def imageWriter(img, dataCollection):
+    if not os.path.exists(dataCollection):
+        os.makedirs(dataCollection)
+    #endif
+
+    totalImages = numberOfFiles(dataCollection)
+
+    imageB64 = convertToB64(img)
+    resizedB64 = convertToB64(cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (200*1,150*1)))
+    imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
+    imageObject = {
+        "_id": totalImages,
+        "servertime": f'{currentServertime()}',
+        "isCorrect": True,
+        "data": [
+            {
+                "pair": "single",
+                "base64": imageB64,
+            },
+        ],
+        "imageBoxHtml": imageBoxHtml,
+        "proid": configData['proid']
+    }
+
+    md5Hash = hashlib.md5(json.dumps(imageObject).encode('utf-8')).hexdigest()
+    imageObject['_hash'] = md5Hash
+
+    with open(f"{dataCollection}/{totalImages}.json", 'w', encoding='utf-8') as f:
+        json.dump(imageObject, f, ensure_ascii=False, indent=4)
+        f.close()
+    #endwith
 #enddef
 
 def buglog(data):
@@ -249,6 +289,7 @@ def defaultSetting():
         "showLogs": False,
         "showImage": True,
         "saveImage": True,
+        "saveImagesFromScratch": False,
         "kill": False
     }
 
@@ -259,7 +300,7 @@ def defaultSetting():
 
 if __name__ == "__main__":
     updateStatus(0)
-    # defaultSetting()
+    defaultSetting()
     while True:
         try:
             cv2.destroyAllWindows()
