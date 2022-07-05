@@ -16,6 +16,7 @@ import time
 from pypylon import pylon
 import cv2
 import numpy as np
+import base64
 
 configDoc = './configs/config.json'
 settingDoc = './configs/setting/accon.json'
@@ -23,6 +24,8 @@ statusDoc = './configs/status/accon.json'
 
 showLogs = False
 pid = None
+counter = 0
+prevSetting = None
 
 def main():
     global pid; pid = os.getpid()
@@ -35,6 +38,8 @@ def main():
 
     if not os.path.exists(settingDoc):
         updateStatus(-3)
+        defaultSetting()
+        updateStatus(5);
         time.sleep(1)
         return
     #endif
@@ -48,7 +53,7 @@ def main():
         data = json.load(f)
         f.close()
         if data['kill']:
-            updateStatus(5)
+            updateStatus(999)
             os.kill(pid, signal.SIGTERM)
         #endif
 
@@ -64,13 +69,14 @@ def main():
 
     converter = bgrConv()
     cam = cams[0]
-    print(cam)
+    # print(cam)
     cameraToPlay = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cam))
     cameraToPlay.Open()
     cameraToPlay.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-    print(f"{cam.GetSerialNumber()}: [Cameras opened]")
+    # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
+    grabbingCount = 0
     while cameraToPlay.IsGrabbing():
         try:
             if not os.path.exists(configDoc):
@@ -81,6 +87,8 @@ def main():
 
             if not os.path.exists(settingDoc):
                 updateStatus(-3)
+                defaultSetting()
+                updateStatus(5);
                 time.sleep(1)
                 return
             #endif
@@ -88,21 +96,22 @@ def main():
             f = open(settingDoc)
             data = json.load(f)
             f.close()
-
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage', 'kill')(data)
             
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage', 'kill')(data)
+                
             if camPid:
                 print(pid)
             #endif
-            
+                
             if camKill:
-                updateStatus(5)
+                updateStatus(999)
                 os.kill(pid, signal.SIGTERM)
             #endif
-            
+                
             global showLogs; showLogs = camLogs
             buglog(data)
 
+            # print(camExposure)
             cameraToPlay.ExposureTime.SetValue(camExposure)
 
             if (camGain <= 24.014275) and (camGain >= 0):
@@ -110,10 +119,18 @@ def main():
             else:
                 cameraToPlay.Gain.SetValue(0)
             #endif
+
+            global prevSetting
+            if prevSetting != data: updateStatus(6)
+            prevSetting = data
+            #endif
         except Exception as e:
             print(e)
             updateStatus(-2)
-            buglog("Defaulted. Maybe incorrect ACCON data?")
+            defaultSetting()
+            updateStatus(5)
+            buglog("Defaulted. Maybe incorrect setting data?")
+            return
         #endtry
 
         grabResult = cameraToPlay.RetrieveResult(camRetrievalTime, pylon.TimeoutHandling_ThrowException)
@@ -125,16 +142,19 @@ def main():
                 cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
 
                 if cv2.waitKey(1) & 0xff == ord('q'):
-                    updateStatus(5)
+                    updateStatus(999)
                     os.kill(pid, signal.SIGTERM)
                     break
                 #endif
             else:
                 cv2.destroyAllWindows()
             #endif
+
+            if grabbingCount == 0: updateStatus(7);
         #endif
 
         grabResult.Release()
+        grabbingCount += 1
     #endwhile
 
     # Releasing the resource    
@@ -142,7 +162,7 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter():
+def imageWriter(img):
     ''''''
 #enddef
 
@@ -153,9 +173,11 @@ def buglog(data):
 #enddef
 
 def updateStatus(status):
-    ''''''
     camStatuses = {
-        5: "Ended",
+        999: "Ended",
+        7: "First frame grabbed",
+        6: "Setting applied",
+        5: "Setting file created automatically",
         4: "Camera reviving",
         3: "Camera initiated",
         2: "Camera found",
@@ -165,6 +187,7 @@ def updateStatus(status):
         -2: "Camera exception",
         -3: "Setting not found",
         -4: "Config not found",
+        -5: "Frame grabbing failed",
         -999: "Unexpected error"
     }
 
@@ -200,16 +223,55 @@ def bgrConv():
     return converter
 #enddef
 
+def convertToB64(img):
+    _, imArr = cv2.imencode('.png', img)  # imArr: image in Numpy one-dim array format.
+    imBytes = imArr.tobytes()
+    imB64 = base64.b64encode(imBytes)
+    return imB64.decode("utf-8")
+#enddef
+
+def currentServertime():
+    return round(time.time() * 1000)
+#enddef
+
+def numberOfFiles(dir):
+    list = os.listdir(dir)
+    numberFiles = len(list)
+    return numberFiles
+#enddef
+
+def defaultSetting():
+    settingData = {
+        "exposure": 10900,
+        "gain": 0,
+        "retrievalTime": 500,
+        "showPid": False,
+        "showLogs": False,
+        "showImage": True,
+        "saveImage": True,
+        "kill": False
+    }
+
+    with open(settingDoc, 'w', encoding='utf-8') as f:
+        json.dump(settingData, f, ensure_ascii=False, indent=4)
+    #endwith
+#enddef
+
 if __name__ == "__main__":
     updateStatus(0)
+    # defaultSetting()
     while True:
         try:
             cv2.destroyAllWindows()
             main()
-        except:
+        except Exception as e:
+            print(e)
+            if counter == 10: defaultSetting(); updateStatus(5)
             # print("Reviving...")
             updateStatus(4)
         #endtry
+
+        counter += 1
     #endwhile
 #endif
 
