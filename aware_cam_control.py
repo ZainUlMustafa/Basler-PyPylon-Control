@@ -19,6 +19,7 @@ from pypylon import pylon
 import cv2
 import numpy as np
 import base64
+import multiprocessing
 
 configDoc = './configs/config.json'
 settingDoc = './configs/setting/accon.json'
@@ -80,12 +81,14 @@ def main():
     # print(cam)
     cameraToPlay = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cam))
     cameraToPlay.Open()
+    # cameraToPlay.AcquisitionFrameRateEnable.SetValue(True)
     cameraToPlay.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
     grabbingCount = 0
     while cameraToPlay.IsGrabbing():
+        startTime = time.time()
         try:
             if not os.path.exists(configDoc):
                 updateStatus(-4)
@@ -105,8 +108,16 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch', 'kill')(data)
-                
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill')(data)
+            
+            cameraToPlay.AcquisitionFrameRate.SetValue(camFps)
+            cameraToPlay.ExposureTime.SetValue(camExposure)
+            if (camGain <= 24.014275) and (camGain >= 0):
+                cameraToPlay.Gain.SetValue(camGain)
+            else:
+                cameraToPlay.Gain.SetValue(0)
+            #endif
+
             if camPid:
                 print(pid)
             #endif
@@ -118,15 +129,6 @@ def main():
                 
             global showLogs; showLogs = camLogs
             buglog(data)
-
-            # print(camExposure)
-            cameraToPlay.ExposureTime.SetValue(camExposure)
-
-            if (camGain <= 24.014275) and (camGain >= 0):
-                cameraToPlay.Gain.SetValue(camGain)
-            else:
-                cameraToPlay.Gain.SetValue(0)
-            #endif
 
             global prevSetting
             if prevSetting != data: updateStatus(6)
@@ -146,8 +148,9 @@ def main():
             image = converter.Convert(grabResult)
             img = image.GetArray()
 
-            dataCollection = f"./data/{configData['proid']}/orig"
-            if camSaveImage: imageWriter(img, dataCollection);
+            if camSaveImage:
+                imageWriter(img, grabbingCount);
+            #enddef
 
             if camShowImage:
                 cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
@@ -162,10 +165,12 @@ def main():
             #endif
 
             if grabbingCount == 0: updateStatus(7);
+            grabbingCount += 1
         #endif
 
         grabResult.Release()
-        grabbingCount += 1
+        endTime = time.time()
+        print(f"Total time taken this loop: {(endTime - startTime)*1000} ms")
     #endwhile
 
     # Releasing the resource    
@@ -173,15 +178,22 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(img, dataCollection):
+def imageWriter(img, grabbingCount):
+    dataCollection = f"./data/{configData['proid']}/orig_png"
+    dataCollectionJson = f"./data/{configData['proid']}/orig_json"
+
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
     #endif
 
-    totalImages = numberOfFiles(dataCollection)
+    if not os.path.exists(dataCollectionJson):
+        os.makedirs(dataCollectionJson)
+    #endif
 
-    imageB64 = convertToB64(img)
-    resizedB64 = convertToB64(cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (200*1,150*1)))
+    totalImages = numberOfFiles(dataCollectionJson)
+
+    # imageB64 = convertToB64(img)
+    resizedB64 = convertToB64(cv2.resize(img, (200*1,150*1)))
     imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
     imageObject = {
         "_id": totalImages,
@@ -190,7 +202,7 @@ def imageWriter(img, dataCollection):
         "data": [
             {
                 "pair": "single",
-                "base64": imageB64,
+                "base64": f"{dataCollection}/single_{totalImages}.png",
             },
         ],
         "imageBoxHtml": imageBoxHtml,
@@ -200,10 +212,18 @@ def imageWriter(img, dataCollection):
     md5Hash = hashlib.md5(json.dumps(imageObject).encode('utf-8')).hexdigest()
     imageObject['_hash'] = md5Hash
 
-    with open(f"{dataCollection}/{totalImages}.json", 'w', encoding='utf-8') as f:
+    with open(f"{dataCollectionJson}/{totalImages}.json", 'w', encoding='utf-8') as f:
         json.dump(imageObject, f, ensure_ascii=False, indent=4)
         f.close()
     #endwith
+
+    # multiprocessing.Process(target=saveImage, args=(img, f"{dataCollection}/{totalImages}.png",)).start()
+    cv2.imwrite(f"{dataCollection}/{totalImages}.png", img)
+    # print(f"Image {totalImages} written")
+#enddef
+
+def saveImage(img, path):
+    cv2.imwrite(path, img)
 #enddef
 
 def buglog(data):
@@ -267,7 +287,7 @@ def convertToB64(img):
     _, imArr = cv2.imencode('.png', img)  # imArr: image in Numpy one-dim array format.
     imBytes = imArr.tobytes()
     imB64 = base64.b64encode(imBytes)
-    return imB64.decode("utf-8")
+    return imB64.decode("ascii")
 #enddef
 
 def currentServertime():
@@ -284,12 +304,13 @@ def defaultSetting():
     settingData = {
         "exposure": 10900,
         "gain": 0,
-        "retrievalTime": 500,
+        "retrievalTime": 5000,
         "showPid": False,
         "showLogs": False,
         "showImage": True,
         "saveImage": True,
         "saveImagesFromScratch": False,
+        "fps": 5,
         "kill": False
     }
 
