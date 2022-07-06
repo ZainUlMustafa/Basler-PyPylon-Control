@@ -86,7 +86,16 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    grabbingCount = 0
+    dataCollection = f"./data/{configData['proid']}/orig_png"
+    dataCollectionJson = f"./data/{configData['proid']}/orig_json"
+    if not os.path.exists(dataCollection):
+        os.makedirs(dataCollection)
+    #endif
+    if not os.path.exists(dataCollectionJson):
+        os.makedirs(dataCollectionJson)
+    #endif
+
+    grabbingCount = numberOfFiles(dataCollectionJson)
     while cameraToPlay.IsGrabbing():
         startTime = time.time()
         try:
@@ -149,7 +158,8 @@ def main():
             img = image.GetArray()
 
             if camSaveImage:
-                imageWriter(img, grabbingCount);
+                multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,)).start()
+                # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
             #enddef
 
             if camShowImage:
@@ -178,21 +188,10 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(img, grabbingCount):
-    dataCollection = f"./data/{configData['proid']}/orig_png"
-    dataCollectionJson = f"./data/{configData['proid']}/orig_json"
+def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson):
+    totalImages = grabbingCount
 
-    if not os.path.exists(dataCollection):
-        os.makedirs(dataCollection)
-    #endif
-
-    if not os.path.exists(dataCollectionJson):
-        os.makedirs(dataCollectionJson)
-    #endif
-
-    totalImages = numberOfFiles(dataCollectionJson)
-
-    # imageB64 = convertToB64(img)
+    imageB64 = convertToB64(img)
     resizedB64 = convertToB64(cv2.resize(img, (200*1,150*1)))
     imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
     imageObject = {
@@ -202,7 +201,7 @@ def imageWriter(img, grabbingCount):
         "data": [
             {
                 "pair": "single",
-                "base64": f"{dataCollection}/single_{totalImages}.png",
+                "base64": imageB64, #f"{dataCollection}/single_{totalImages}.png",
             },
         ],
         "imageBoxHtml": imageBoxHtml,
@@ -218,7 +217,7 @@ def imageWriter(img, grabbingCount):
     #endwith
 
     # multiprocessing.Process(target=saveImage, args=(img, f"{dataCollection}/{totalImages}.png",)).start()
-    cv2.imwrite(f"{dataCollection}/{totalImages}.png", img)
+    # cv2.imwrite(f"{dataCollection}/{totalImages}.png", img)
     # print(f"Image {totalImages} written")
 #enddef
 
