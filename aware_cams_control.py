@@ -45,12 +45,6 @@ def main():
     configData = json.load(f)
     f.close()
 
-    if not doesConfigContainsValidInfo(configData):
-        updateStatus(-6)
-        time.sleep(1)
-        return
-    #endif
-
     if not os.path.exists(settingDoc):
         updateStatus(-3)
         defaultSetting()
@@ -59,26 +53,28 @@ def main():
         return
     #endif
 
-    camIds = ["22730681"]
+    camIds = ["22730681", "22730679"]
     cams = []
 
     updateStatus(1)
-    f = open(settingDoc)
-    data = json.load(f)
-    f.close()
-    if data['kill']:
-        updateStatus(999)
-        os.kill(pid, signal.SIGTERM)
-    #endif
+    while len(cams) != len(camIds): 
+        f = open(settingDoc)
+        data = json.load(f)
+        f.close()
+        if data['kill']:
+            updateStatus(999)
+            os.kill(pid, signal.SIGTERM)
+        #endif
 
-    cams = fetchCameras(camIds)
-    if len(cams) != len(camIds): 
-        updateStatus(-1)
-        time.sleep(1)
-        return
-    #endif
-    updateStatus(2)
-    print(cams)
+        cams = fetchCameras(camIds)
+        if len(cams) != len(camIds): 
+            updateStatus(-1)
+            time.sleep(1)
+        else:
+            updateStatus(2)
+        #endif
+        print(cams)
+    #endwhile
 
     converter = bgrConv()
     cam = cams[0]
@@ -101,15 +97,6 @@ def main():
     grabbingCount = numberOfFiles(dataCollectionJson)
     while cameraToPlay.IsGrabbing():
         startTime = time.time()
-
-        f = open(configDoc)
-        configData = json.load(f)
-        f.close()
-        if not doesConfigContainsValidInfo(configData):
-            time.sleep(1)
-            return
-        #endif
-
         try:
             if not os.path.exists(configDoc):
                 updateStatus(-4)
@@ -243,19 +230,6 @@ def buglog(data):
     #endif
 #enddef
 
-def doesConfigContainsValidInfo(data):
-    validOperations = ["0"]
-    if "proid" in data and "operationStatus" in data:
-        if len(data['proid']) != 0 and data['operationStatus'] in validOperations:
-            # print(data)
-            return True
-        #endif
-    #endif
-
-    # print(data)
-    return False
-#enddef
-
 def updateStatus(status):
     camStatuses = {
         999: "Ended",
@@ -272,7 +246,6 @@ def updateStatus(status):
         -3: "Setting not found",
         -4: "Config not found",
         -5: "Frame grabbing failed",
-        -6: "Config not valid",
         -999: "Unexpected error"
     }
 
@@ -355,8 +328,6 @@ if __name__ == "__main__":
             print(e)
             if counter == 10: defaultSetting(); updateStatus(5)
             # print("Reviving...")
-            updateStatus(4)
-        except KeyboardInterrupt:
             updateStatus(4)
         #endtry
 

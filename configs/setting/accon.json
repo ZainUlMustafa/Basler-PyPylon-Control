@@ -1,12 +1,12 @@
 {
-    "exposure": 500,
-    "gain": 20,
+    "exposure": 10900,
+    "gain": 0,
     "retrievalTime": 5000,
     "showPid": false,
     "showLogs": false,
-    "showImage": false,
+    "showImage": true,
     "saveImage": true,
     "saveImagesFromScratch": false,
     "fps": 5,
-    "kill": true
+    "kill": false
 }
