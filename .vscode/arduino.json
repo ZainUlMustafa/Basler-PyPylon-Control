@@ -1,0 +1,7 @@
+{
+    "configuration": "cpu=atmega328",
+    "board": "arduino:avr:nano",
+    "sketch": "arduino/cam_control/cam_control.ino",
+    "port": "/dev/ttyUSB0",
+    "programmer": "arduino:avrispmkii"
+}
