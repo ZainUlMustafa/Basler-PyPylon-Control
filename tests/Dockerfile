@@ -1,5 +1,5 @@
 # 1 
-FROM python:3.8.10-slim-buster
+FROM python:3.6.9-slim-buster
 
 # IMPORTANT FOR CV2 DONT TOUCH
 # RUN apt-get update -y 
@@ -9,9 +9,11 @@ FROM python:3.8.10-slim-buster
 
 
 #2
-COPY req.txt .
+RUN pip3 install --upgrade pip
+# COPY req.txt .
 # RUN pip3 install opencv-python
-RUN pip3 install -r req.txt
+# RUN pip3 install -r req.txt
+RUN pip3 install Jetson.GPIO
 
 # 3
 COPY ./jetson_gpio_trigger.py /app/jetson_gpio_trigger.py

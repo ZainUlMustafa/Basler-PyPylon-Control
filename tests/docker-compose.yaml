@@ -13,7 +13,7 @@ services:
     volumes:
       # - /dev:/dev
       # - /var/run/dbus:/var/run/dbus
-      # -/sys:/sys
+      - /sys:/sys
       - ./:/app
     restart: "no"
 #########################################
