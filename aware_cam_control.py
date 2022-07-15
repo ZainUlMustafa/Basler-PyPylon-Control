@@ -89,7 +89,7 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    dataCollection = f"./data/{configData['proid']}/orig_png"
+    dataCollection = f"./data/{configData['proid']}/orig_low_res"
     dataCollectionJson = f"./data/{configData['proid']}/orig_json"
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
@@ -168,9 +168,10 @@ def main():
         if grabResult.GrabSucceeded():
             image = converter.Convert(grabResult)
             img = image.GetArray()
+            timeOfGrab = currentServertime();
 
             if camSaveImage:
-                multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,)).start()
+                multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,timeOfGrab,)).start()
                 # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
             #enddef
 
@@ -200,23 +201,29 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson):
+def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson, timeOfGrab):
     totalImages = grabbingCount
 
+    resizedImg = cv2.resize(img, (200*2,150*2))
+    rotatedResizedImg = cv2.rotate(resizedImg, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    
     imageB64 = convertToB64(img)
-    resizedB64 = convertToB64(cv2.resize(img, (200*1,150*1)))
-    imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
+    lowResB64 = convertToB64(resizedImg, '.jpg')
+    # lowResRotB64 = convertToB64(rotatedResizedImg, '.jpg')
+    
+    # imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/jpg;base64,{lowResB64}' width='100%' alt='{configData['proid']} image'/></html>"
     imageObject = {
         "_id": totalImages,
-        "servertime": f'{currentServertime()}',
+        "servertime": f'{timeOfGrab}',
         "isCorrect": True,
         "data": [
             {
                 "pair": "single",
-                "base64": imageB64, #f"{dataCollection}/single_{totalImages}.png",
+                "base64": imageB64, #original image
+                "lowResImage": f"{dataCollection}/{totalImages}.png" # path to low res image
             },
         ],
-        "imageBoxHtml": imageBoxHtml,
+        # "imageBoxHtml": imageBoxHtml,
         "proid": configData['proid']
     }
 
@@ -229,7 +236,7 @@ def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson):
     #endwith
 
     # multiprocessing.Process(target=saveImage, args=(img, f"{dataCollection}/{totalImages}.png",)).start()
-    # cv2.imwrite(f"{dataCollection}/{totalImages}.png", img)
+    cv2.imwrite(f"{dataCollection}/{totalImages}.jpg", rotatedResizedImg)
     # print(f"Image {totalImages} written")
 #enddef
 
@@ -244,7 +251,7 @@ def buglog(data):
 #enddef
 
 def doesConfigContainsValidInfo(data):
-    validOperations = ["0"]
+    validOperations = ["1"]
     if "proid" in data and "operationStatus" in data:
         if len(data['proid']) != 0 and data['operationStatus'] in validOperations:
             # print(data)
@@ -308,8 +315,8 @@ def bgrConv():
     return converter
 #enddef
 
-def convertToB64(img):
-    _, imArr = cv2.imencode('.png', img)  # imArr: image in Numpy one-dim array format.
+def convertToB64(img, ext='.png'):
+    _, imArr = cv2.imencode(ext, img)  # imArr: image in Numpy one-dim array format.
     imBytes = imArr.tobytes()
     imB64 = base64.b64encode(imBytes)
     return imB64.decode("ascii")
@@ -327,7 +334,7 @@ def numberOfFiles(dir):
 
 def defaultSetting():
     settingData = {
-        "exposure": 10900,
+        "exposure": 100000,
         "gain": 0,
         "retrievalTime": 5000,
         "showPid": False,
@@ -335,7 +342,7 @@ def defaultSetting():
         "showImage": True,
         "saveImage": True,
         "saveImagesFromScratch": False,
-        "fps": 5,
+        "fps": 1,
         "kill": False
     }
 
