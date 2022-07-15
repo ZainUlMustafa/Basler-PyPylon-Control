@@ -16,10 +16,11 @@ import shutil
 import signal
 import time
 from pypylon import pylon
-import cv2
 import numpy as np
 import base64
 import multiprocessing
+
+import cv2
 
 configDoc = './configs/config.json'
 settingDoc = './configs/setting/accon.json'
@@ -339,7 +340,7 @@ def defaultSetting():
         "retrievalTime": 5000,
         "showPid": False,
         "showLogs": False,
-        "showImage": True,
+        "showImage": False,
         "saveImage": True,
         "saveImagesFromScratch": False,
         "fps": 1,

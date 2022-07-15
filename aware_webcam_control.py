@@ -7,7 +7,7 @@ again.
 AWCON uses accon.json as strategy definer within which camera control properties can
 be defined.
 '''
-
+print("ACCON INIT")
 import json
 from operator import itemgetter
 import os
