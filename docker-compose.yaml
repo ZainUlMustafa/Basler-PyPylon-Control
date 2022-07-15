@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+
+#########################################
+####START PYTHON
+#########################################
+  cam_control:
+    privileged: true      #IF FALSE THEN INDIVIDUAL DEVICE HAS TO BE CONNECTED. IF TRUE THEN VOLUME MOUNTING DOES THE JOB
+    container_name: cp-cam_control
+    image: aamirvakeel/python3.6-cam_control
+    build: .
+    volumes:
+      - /dev:/dev
+      # - /var/run/dbus:/var/run/dbus
+      # - /sys:/sys
+      - ./:/app
+    restart: "no"
+#########################################
+####END PYTHON
+#########################################
