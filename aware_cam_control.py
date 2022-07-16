@@ -72,6 +72,8 @@ def main():
         os.kill(pid, signal.SIGTERM)
     #endif
 
+    if data['forceHalt']: time.sleep(1); return;
+
     cams = fetchCameras(camIds)
     if len(cams) != len(camIds): 
         updateStatus(-1)
@@ -132,8 +134,10 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill')(data)
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill', 'forceHalt')(data)
             
+            if camForceHalt: time.sleep(1); return;
+
             cameraToPlay.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlay.ExposureTime.SetValue(camExposure)
             if (camGain <= 24.014275) and (camGain >= 0):
@@ -355,7 +359,8 @@ def defaultSetting():
         "saveImage": True,
         "saveImagesFromScratch": False,
         "fps": 1,
-        "kill": False
+        "kill": False,
+        "forceHalt": False,
     }
 
     with open(settingDoc, 'w', encoding='utf-8') as f:

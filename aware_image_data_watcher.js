@@ -14,12 +14,12 @@ const { time } = require('console');
 7. If the target is greater than the current target then try to achieve the new target
 */
 
-configDoc = './configs/config.json'
-settingDoc = './configs/setting/aidaw.json'
-statusDoc = './configs/status/aidaw.json'
+const configDoc = './configs/config.json'
+const settingDoc = './configs/setting/aidaw.json'
+const statusDoc = './configs/status/aidaw.json'
 
-debug = true
-sleeper = 500
+const debug = true
+const sleeper = 500
 
 // get the target, reach it, and get a new target
 function main() {
@@ -27,7 +27,7 @@ function main() {
         sleep(sleeper, function () { });
         return updateStatus(-3)
     }
-    configData = JSON.parse(fs.readFileSync(configDoc, { encoding: 'utf-8' }))
+    const configData = JSON.parse(fs.readFileSync(configDoc, { encoding: 'utf-8' }))
     const { proid, operationStatus } = configData;
 
     if (proid === "-1" || proid === "") {
@@ -39,26 +39,59 @@ function main() {
         return updateStatus(-2);
     }
 
-    var start = new Date().getTime();
-    sleep(sleeper, function () { });
-    var stop = new Date().getTime();
+    // access the meta.txt
+    var metaData = fs.readFileSync(`./data/${proid}/meta.txt`, {encoding: 'utf8'});
+    var procMetaData = "-1"
+    
+    const procMetaDoc = `./data/${proid}/proc_meta.txt`
+    if (fs.existsSync(procMetaDoc)) {
+        procMetaData = fs.readFileSync(procMetaDoc, {encoding: 'utf8'});
+        if (procMetaData === "") procMetaData = "-1";
+    } else {
+        updateStatus(-3)
+    }
 
-    console.log(`Exec time: ${stop - start} ms`)
+    const targetToAchieve = Number(metaData) //45
+    updateStatus(4)
+
+    var grabbingCount = Number(procMetaData) //-1
+    bugLog(`Starting from: ${grabbingCount}`)
+
+    if (grabbingCount < targetToAchieve) updateStatus(1)
+    while(grabbingCount < targetToAchieve) {
+        var start = new Date().getTime();
+        //  begin to achieve the target
+        sleep(sleeper, function () { });
+        grabbingCount += 1
+        updateProcMeta(grabbingCount, procMetaDoc)
+        var stop = new Date().getTime();
+
+        // sleep(sleeper, function () { });
+        console.log(`Exec time: ${stop - start} ms`)
+    }
+
+    sleep(sleeper, function () { });
+}
+
+function updateProcMeta(count, path) {
+    fs.writeFileSync(path, `${count}`)
 }
 
 function updateStatus(status) {
-    allStatuses = {
+    const allStatuses = {
         "999": "Ended",
+        "4": "Reading new target",
         "3": "Image watcher reviving",
         "2": "Image saved on db",
-        "1": "Image processed",
+        "1": "Images processing and saving started",
         "0": "Script started",
         "-1": "Config not found",
         "-2": "Config not valid",
+        "-3": "Proc meta not found, init it!",
         "-999": "Unexpected error"
     }
 
-    statusData = {
+    const statusData = {
         'status': status,
         'message': allStatuses[status],
     }
