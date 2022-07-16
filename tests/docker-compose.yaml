@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+
+#########################################
+####START PYTHON
+#########################################
+  gpio_trigger:
+    privileged: true      #IF FALSE THEN INDIVIDUAL DEVICE HAS TO BE CONNECTED. IF TRUE THEN VOLUME MOUNTING DOES THE JOB
+    container_name: cp-gpio_trigger
+    image: aamirvakeel/python3.6-gpio_trigger
+    build: .
+    volumes:
+      # - /dev:/dev
+      # - /var/run/dbus:/var/run/dbus
+      - /sys:/sys
+      - ./:/app
+    restart: "no"
+#########################################
+####END PYTHON
+#########################################
