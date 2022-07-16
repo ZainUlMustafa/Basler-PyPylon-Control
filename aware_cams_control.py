@@ -77,11 +77,13 @@ def main():
     #endwhile
 
     converter = bgrConv()
-    cam = cams[0]
-    # print(cam)
-    cameraToPlay = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cam))
-    cameraToPlay.Open()
-    cameraToPlay.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+    cameraToPlayOne = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[0]))
+    cameraToPlayOne.Open()
+    cameraToPlayOne.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+
+    cameraToPlayTwo = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[1]))
+    cameraToPlayTwo.Open()
+    cameraToPlayTwo.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
@@ -95,7 +97,7 @@ def main():
     #endif
 
     grabbingCount = numberOfFiles(dataCollectionJson)
-    while cameraToPlay.IsGrabbing():
+    while cameraToPlayOne.IsGrabbing() and cameraToPlayTwo.IsGrabbing():
         startTime = time.time()
         try:
             if not os.path.exists(configDoc):
@@ -118,12 +120,16 @@ def main():
             
             camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill')(data)
             
-            cameraToPlay.AcquisitionFrameRate.SetValue(camFps)
-            cameraToPlay.ExposureTime.SetValue(camExposure)
+            cameraToPlayOne.AcquisitionFrameRate.SetValue(camFps)
+            cameraToPlayOne.ExposureTime.SetValue(camExposure)
+            cameraToPlayTwo.AcquisitionFrameRate.SetValue(camFps)
+            cameraToPlayTwo.ExposureTime.SetValue(camExposure)
             if (camGain <= 24.014275) and (camGain >= 0):
-                cameraToPlay.Gain.SetValue(camGain)
+                cameraToPlayOne.Gain.SetValue(camGain)
+                cameraToPlayTwo.Gain.SetValue(camGain)
             else:
-                cameraToPlay.Gain.SetValue(0)
+                cameraToPlayOne.Gain.SetValue(0)
+                cameraToPlayTwo.Gain.SetValue(0)
             #endif
 
             if camPid:
@@ -151,18 +157,23 @@ def main():
             return
         #endtry
 
-        grabResult = cameraToPlay.RetrieveResult(camRetrievalTime, pylon.TimeoutHandling_ThrowException)
-        if grabResult.GrabSucceeded():
-            image = converter.Convert(grabResult)
-            img = image.GetArray()
+        grabResultOne = cameraToPlayOne.RetrieveResult(camRetrievalTime, pylon.TimeoutHandling_ThrowException)
+        grabResultTwo = cameraToPlayTwo.RetrieveResult(camRetrievalTime, pylon.TimeoutHandling_ThrowException)
+        if grabResultOne.GrabSucceeded():
+            imageOne = converter.Convert(grabResultOne)
+            imgOne = imageOne.GetArray()
 
-            if camSaveImage:
-                multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,)).start()
-                # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
-            #enddef
+            imageTwo = converter.Convert(grabResultTwo)
+            imgTwo = imageTwo.GetArray()
+
+            # if camSaveImage:
+            #     multiprocessing.Process(target=imageWriter, args=(imgOne, imgTwo, grabbingCount,dataCollection, dataCollectionJson,)).start()
+            #     # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
+            # #enddef
 
             if camShowImage:
-                cv2.imshow('right', cv2.resize(img, (640*1,480*1)))
+                cv2.imshow('one', cv2.resize(imgOne, (640*1,480*1)))
+                cv2.imshow('two', cv2.resize(imgTwo, (640*1,480*1)))
 
                 if cv2.waitKey(1) & 0xff == ord('q'):
                     updateStatus(999)
@@ -177,21 +188,23 @@ def main():
             grabbingCount += 1
         #endif
 
-        grabResult.Release()
+        grabResultOne.Release()
+        grabResultTwo.Release()
         endTime = time.time()
         print(f"Total time taken this loop: {(endTime - startTime)*1000} ms")
     #endwhile
 
     # Releasing the resource    
-    cameraToPlay.StopGrabbing()
+    cameraToPlayOne.StopGrabbing()
+    cameraToPlayTwo.StopGrabbing()
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson):
+def imageWriter(imgOne, imgTwo, grabbingCount,dataCollection,dataCollectionJson):
     totalImages = grabbingCount
 
-    imageB64 = convertToB64(img)
-    resizedB64 = convertToB64(cv2.resize(img, (200*1,150*1)))
+    imageB64 = convertToB64(imgOne)
+    resizedB64 = convertToB64(cv2.resize(imgOne, (200*1,150*1)))
     imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
     imageObject = {
         "_id": totalImages,
@@ -308,7 +321,7 @@ def defaultSetting():
         "showImage": True,
         "saveImage": True,
         "saveImagesFromScratch": False,
-        "fps": 5,
+        "fps": 1,
         "kill": False
     }
 

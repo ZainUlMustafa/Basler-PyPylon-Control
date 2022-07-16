@@ -91,6 +91,8 @@ def main():
 
     dataCollection = f"./data/{configData['proid']}/orig_low_res"
     dataCollectionJson = f"./data/{configData['proid']}/orig_json"
+    metaDoc = f"./data/{configData['proid']}/meta.txt"
+
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
     #endif
@@ -170,6 +172,8 @@ def main():
             img = image.GetArray()
             timeOfGrab = currentServertime();
 
+            if grabbingCount%camFps == 0: writeMeta(grabbingCount, metaDoc);
+
             if camSaveImage:
                 multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,timeOfGrab,)).start()
                 # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
@@ -242,6 +246,13 @@ def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson, timeOfGrab
 
 def saveImage(img, path):
     cv2.imwrite(path, img)
+#enddef
+
+def writeMeta(count: int, path: str) -> bool:
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(str(count))
+        f.close()
+    #endwith
 #enddef
 
 def buglog(data):
@@ -322,11 +333,11 @@ def convertToB64(img, ext='.png'):
     return imB64.decode("ascii")
 #enddef
 
-def currentServertime():
+def currentServertime() -> int:
     return round(time.time() * 1000)
 #enddef
 
-def numberOfFiles(dir):
+def numberOfFiles(dir: str) -> int:
     list = os.listdir(dir)
     numberFiles = len(list)
     return numberFiles
@@ -339,7 +350,7 @@ def defaultSetting():
         "retrievalTime": 5000,
         "showPid": False,
         "showLogs": False,
-        "showImage": True,
+        "showImage": False,
         "saveImage": True,
         "saveImagesFromScratch": False,
         "fps": 1,
