@@ -57,9 +57,15 @@ function main() {
     var grabbingCount = Number(procMetaData) //-1
     bugLog(`Starting from: ${grabbingCount}`)
 
-    if (grabbingCount < targetToAchieve) updateStatus(1)
+    // if (grabbingCount < targetToAchieve) updateStatus(1)
     while(grabbingCount < targetToAchieve) {
         var start = new Date().getTime();
+        if(!fs.existsSync(`./data/${proid}/orig_json/${grabbingCount}.json`)) {
+            sleep(sleeper,function () { });
+            return updateStatus(-4)
+        }
+        var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, {encoding: 'utf8'});
+        
         //  begin to achieve the target
         sleep(sleeper, function () { });
         grabbingCount += 1
@@ -88,6 +94,7 @@ function updateStatus(status) {
         "-1": "Config not found",
         "-2": "Config not valid",
         "-3": "Proc meta not found, init it!",
+        "-4":"Image not found, waiting for it!",
         "-999": "Unexpected error"
     }
 
@@ -113,7 +120,12 @@ function sleep(time, callback) {
 
 while (true) {
     try {
+        // process.on('SIGINT', function () {
+        //    updateStatus(999);
+        //     process.exit();
+        // });
         main()
+        
     } catch (err) {
         sleep(sleeper, function () { });
         updateStatus(3)
