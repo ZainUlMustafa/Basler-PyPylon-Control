@@ -1,7 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const { time } = require('console');
-// const axios = require('axios').default;
+// const { default: axios } = require('axios');
+const axios = require('axios').default;
 
 /*
 1. Get the config info to get proid and operation status
@@ -23,7 +24,7 @@ const debug = true
 const sleeper = 500
 
 // get the target, reach it, and get a new target
-function main() {
+async function processing() {
     if (!fs.existsSync(configDoc)) {
         sleep(sleeper, function () { });
         return updateStatus(-3)
@@ -66,8 +67,15 @@ function main() {
             return updateStatus(-4)
         }
         else {
+            // console.log("I AM HERE")
             const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
             const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
+            await axios.get("http://localhost:4000").then((res) => {
+                console.log("AAAAA", res);
+            }).catch(() => {
+                console.log("CATCH")
+            })
+
             // fetch("http://localhost:4000").then((res) => {
             //     console.log(res.body);
             // })
@@ -139,18 +147,23 @@ function sleep(time, callback) {
     callback();
 }
 
-while (true) {
-    try {
-        // process.on('SIGINT', function () {
-        //    updateStatus(999);
-        //     process.exit();
-        // });
-        main()
+async function main() {
+    while (true) {
+        try {
+            // process.on('SIGINT', function () {
+            //    updateStatus(999);
+            //     process.exit();
+            // });
+            await processing()
 
-    } catch (err) {
-        sleep(sleeper, function () { });
-        updateStatus(3)
+        } catch (err) {
+            sleep(sleeper, function () { });
+            updateStatus(3)
+        }
+
     }
 }
 
+
+main();
 

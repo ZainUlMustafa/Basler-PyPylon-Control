@@ -4,3 +4,4 @@ data.zip
 *.deb
 node_modules/
 package-lock.json
+yarn*
