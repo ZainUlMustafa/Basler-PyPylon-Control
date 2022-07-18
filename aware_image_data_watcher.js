@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { time } = require('console');
+const axios = require('axios').default;
 
 /*
 1. Get the config info to get proid and operation status
@@ -23,7 +24,7 @@ const sleeper = 500
 
 // get the target, reach it, and get a new target
 function main() {
-    if (!fs.existsSync(configDoc)) { 
+    if (!fs.existsSync(configDoc)) {
         sleep(sleeper, function () { });
         return updateStatus(-3)
     }
@@ -40,12 +41,12 @@ function main() {
     }
 
     // access the meta.txt
-    var metaData = fs.readFileSync(`./data/${proid}/meta.txt`, {encoding: 'utf8'});
+    var metaData = fs.readFileSync(`./data/${proid}/meta.txt`, { encoding: 'utf8' });
     var procMetaData = "-1"
-    
+
     const procMetaDoc = `./data/${proid}/proc_meta.txt`
     if (fs.existsSync(procMetaDoc)) {
-        procMetaData = fs.readFileSync(procMetaDoc, {encoding: 'utf8'});
+        procMetaData = fs.readFileSync(procMetaDoc, { encoding: 'utf8' });
         if (procMetaData === "") procMetaData = "-1";
     } else {
         updateStatus(-3)
@@ -58,14 +59,31 @@ function main() {
     bugLog(`Starting from: ${grabbingCount}`)
 
     // if (grabbingCount < targetToAchieve) updateStatus(1)
-    while(grabbingCount < targetToAchieve) {
+    while (grabbingCount < targetToAchieve) {
         var start = new Date().getTime();
-        if(!fs.existsSync(`./data/${proid}/orig_json/${grabbingCount}.json`)) {
-            sleep(sleeper,function () { });
+        if (!fs.existsSync(`./data/${proid}/orig_json/${grabbingCount}.json`)) {
+            sleep(sleeper, function () { });
             return updateStatus(-4)
         }
-        var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, {encoding: 'utf8'});
-        
+        else {
+            const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
+            const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
+            axios.post('http://localhost:4000/imagesPath', {
+                imageJsonPath,
+                proid,
+                lowResImagePath,
+                grabbingCount,
+                operationStatus
+            }).then(function (response) {
+                console.log("res")
+                console.log(response.data);
+            })
+                .catch(function (error) {
+                    console.log(error);
+                })
+        }
+        var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
+
         //  begin to achieve the target
         sleep(sleeper, function () { });
         grabbingCount += 1
@@ -94,7 +112,7 @@ function updateStatus(status) {
         "-1": "Config not found",
         "-2": "Config not valid",
         "-3": "Proc meta not found, init it!",
-        "-4":"Image not found, waiting for it!",
+        "-4": "Image not found, waiting for it!",
         "-999": "Unexpected error"
     }
 
@@ -125,7 +143,7 @@ while (true) {
         //     process.exit();
         // });
         main()
-        
+
     } catch (err) {
         sleep(sleeper, function () { });
         updateStatus(3)
