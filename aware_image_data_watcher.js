@@ -66,33 +66,16 @@ async function processing() {
             sleep(sleeper, function () { });
             return updateStatus(-4)
         }
-        else {
-            // console.log("I AM HERE")
-            const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
-            const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
-            await axios.get("http://localhost:4000").then((res) => {
-                console.log("AAAAA", res);
-            }).catch(() => {
-                console.log("CATCH")
-            })
+        const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
+        const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
+        console.log(grabbingCount, "grab");
+        await axios.post('http://localhost:4000/imagesPath', {
+            imageId: grabbingCount,
+            imageDirectory: imageJsonPath,
+            proid,
+            lrImageDirectory: lowResImagePath,
 
-            // fetch("http://localhost:4000").then((res) => {
-            //     console.log(res.body);
-            // })
-            // axios.post('http://localhost:4000/imagesPath', {
-            //     imageJsonPath,
-            //     proid,
-            //     lowResImagePath,
-            //     grabbingCount,
-            //     operationStatus
-            // }).then(function (response) {
-            //     console.log("res")
-            //     console.log(response.data);
-            // })
-            //     .catch(function (error) {
-            //         console.log(error);
-            //     })
-        }
+        });
         var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
 
         //  begin to achieve the target
