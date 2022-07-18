@@ -43,20 +43,21 @@ async function processing() {
 
     // access the meta.txt
     var metaData = fs.readFileSync(`./data/${proid}/meta.txt`, { encoding: 'utf8' });
-    var procMetaData = "-1"
+    var procMetaData = "0"
 
     const procMetaDoc = `./data/${proid}/proc_meta.txt`
     if (fs.existsSync(procMetaDoc)) {
         procMetaData = fs.readFileSync(procMetaDoc, { encoding: 'utf8' });
-        if (procMetaData === "") procMetaData = "-1";
+        if (procMetaData === "") procMetaData = 0;
     } else {
         updateStatus(-3)
+
     }
 
     const targetToAchieve = Number(metaData) //45
     updateStatus(4)
 
-    var grabbingCount = Number(procMetaData) //-1
+    var grabbingCount = Number(procMetaData) //0
     bugLog(`Starting from: ${grabbingCount}`)
 
     // if (grabbingCount < targetToAchieve) updateStatus(1)
