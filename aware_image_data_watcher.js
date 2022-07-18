@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { time } = require('console');
-const axios = require('axios').default;
+// const axios = require('axios').default;
 
 /*
 1. Get the config info to get proid and operation status
@@ -68,19 +68,22 @@ function main() {
         else {
             const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
             const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
-            axios.post('http://localhost:4000/imagesPath', {
-                imageJsonPath,
-                proid,
-                lowResImagePath,
-                grabbingCount,
-                operationStatus
-            }).then(function (response) {
-                console.log("res")
-                console.log(response.data);
-            })
-                .catch(function (error) {
-                    console.log(error);
-                })
+            // fetch("http://localhost:4000").then((res) => {
+            //     console.log(res.body);
+            // })
+            // axios.post('http://localhost:4000/imagesPath', {
+            //     imageJsonPath,
+            //     proid,
+            //     lowResImagePath,
+            //     grabbingCount,
+            //     operationStatus
+            // }).then(function (response) {
+            //     console.log("res")
+            //     console.log(response.data);
+            // })
+            //     .catch(function (error) {
+            //         console.log(error);
+            //     })
         }
         var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
 
