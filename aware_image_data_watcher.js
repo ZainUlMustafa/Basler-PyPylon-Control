@@ -16,9 +16,11 @@ const axios = require('axios').default;
 7. If the target is greater than the current target then try to achieve the new target
 */
 
-const configDoc = './configs/config.json'
-const settingDoc = './configs/setting/aidaw.json'
-const statusDoc = './configs/status/aidaw.json'
+const configPath = '.'
+const dataPath = '.'
+const configDoc = `${configPath}/configs/config.json`
+const settingDoc = `${configPath}/configs/setting/aidaw.json`
+const statusDoc = `${configPath}/configs/status/aidaw.json`
 
 const debug = true
 const sleeper = 500
@@ -42,10 +44,10 @@ async function processing() {
     }
 
     // access the meta.txt
-    var metaData = fs.readFileSync(`./data/${proid}/meta.txt`, { encoding: 'utf8' });
+    var metaData = fs.readFileSync(`${dataPath}/data/${proid}/meta.txt`, { encoding: 'utf8' });
     var procMetaData = "0"
 
-    const procMetaDoc = `./data/${proid}/proc_meta.txt`
+    const procMetaDoc = `${dataPath}/data/${proid}/proc_meta.txt`
     if (fs.existsSync(procMetaDoc)) {
         procMetaData = fs.readFileSync(procMetaDoc, { encoding: 'utf8' });
         if (procMetaData === "") procMetaData = 0;
@@ -63,12 +65,12 @@ async function processing() {
     // if (grabbingCount < targetToAchieve) updateStatus(1)
     while (grabbingCount < targetToAchieve) {
         var start = new Date().getTime();
-        if (!fs.existsSync(`./data/${proid}/orig_json/${grabbingCount}.json`)) {
+        if (!fs.existsSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`)) {
             sleep(sleeper, function () { });
             return updateStatus(-4)
         }
         const imageJsonPath = `/data/${proid}/orig_json/${grabbingCount}.json`;
-        const lowResImagePath = `/data/${proid}/orig_low_res/${grabbingCount}.jpg`;
+        const lowResImagePath = `/data/${proid}/orig_json/${grabbingCount}.jpg`;
         console.log(grabbingCount, "grab");
         await axios.post('http://localhost:4000/imagesPath', {
             imageId: grabbingCount,
@@ -77,7 +79,7 @@ async function processing() {
             lrImageDirectory: lowResImagePath,
 
         });
-        var imageJsonData = fs.readFileSync(`./data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
+        var imageJsonData = fs.readFileSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
 
         //  begin to achieve the target
         sleep(sleeper, function () { });
