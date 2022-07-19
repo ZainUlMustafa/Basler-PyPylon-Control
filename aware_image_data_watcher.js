@@ -16,10 +16,11 @@ const axios = require('axios').default;
 7. If the target is greater than the current target then try to achieve the new target
 */
 
-const configDoc = './configs/config.json'
-const settingDoc = './configs/setting/aidaw.json'
-const statusDoc = './configs/status/aidaw.json'
+const configPath = '.'
 const dataPath = '.'
+const configDoc = `${configPath}/configs/config.json`
+const settingDoc = `${configPath}/configs/setting/aidaw.json`
+const statusDoc = `${configPath}/configs/status/aidaw.json`
 
 const debug = true
 const sleeper = 500
