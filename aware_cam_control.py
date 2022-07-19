@@ -22,9 +22,11 @@ import multiprocessing
 
 import cv2
 
-configDoc = './configs/config.json'
-settingDoc = './configs/setting/accon.json'
-statusDoc = './configs/status/accon.json'
+configPath  = '.'
+dataPath = '.'
+configDoc = configPath + '/configs/config.json'
+settingDoc = configPath + '/configs/setting/accon.json'
+statusDoc = configPath + '/configs/status/accon.json'
 
 showLogs = False
 pid = None
@@ -92,9 +94,9 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    dataCollection = f"./data/{configData['proid']}/orig_low_res"
-    dataCollectionJson = f"./data/{configData['proid']}/orig_json"
-    metaDoc = f"./data/{configData['proid']}/meta.txt"
+    dataCollection = f"{dataPath}/data/{configData['proid']}/orig_low_res"
+    dataCollectionJson = f"{dataPath}/data/{configData['proid']}/orig_json"
+    metaDoc = f"{dataPath}/data/{configData['proid']}/meta.txt"
 
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
