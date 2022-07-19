@@ -67,8 +67,8 @@ async function processing() {
             sleep(sleeper, function () { });
             return updateStatus(-4)
         }
-        const imageJsonPath = `./data/${proid}/orig_json/${grabbingCount}.json`;
-        const lowResImagePath = `./data/${proid}/orig_json/${grabbingCount}.jpg`;
+        const imageJsonPath = `/data/${proid}/orig_json/${grabbingCount}.json`;
+        const lowResImagePath = `/data/${proid}/orig_low_res/${grabbingCount}.jpg`;
         console.log(grabbingCount, "grab");
         await axios.post('http://localhost:4000/imagesPath', {
             imageId: grabbingCount,
