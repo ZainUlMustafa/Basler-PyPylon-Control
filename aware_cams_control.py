@@ -21,9 +21,14 @@ import numpy as np
 import base64
 import multiprocessing
 
-configDoc = './configs/config.json'
-settingDoc = './configs/setting/accon.json'
-statusDoc = './configs/status/accon.json'
+production = False
+
+configPath = "/Configurations"
+dataPath = "/Data"
+
+configDoc = configPath if production else '.' + '/configs/config.json'
+settingDoc = configPath if production else '.' + '/configs/setting/accon.json'
+statusDoc = configPath if production else '.' + '/configs/status/accon.json'
 
 showLogs = False
 pid = None
@@ -87,8 +92,10 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    dataCollection = f"./data/{configData['proid']}/orig_png"
-    dataCollectionJson = f"./data/{configData['proid']}/orig_json"
+    dataCollection = dataPath if production else '.' + f"/data/{configData['proid']}/orig_low_res"
+    dataCollectionJson = dataPath if production else '.' + f"/data/{configData['proid']}/orig_json"
+    metaDoc = dataPath if production else '.' + f"/data/{configData['proid']}/meta.txt"
+
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
     #endif
@@ -118,8 +125,9 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill')(data)
-            
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill', 'forceHalt')(data)
+            if camForceHalt: time.sleep(1); return;
+
             cameraToPlayOne.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlayOne.ExposureTime.SetValue(camExposure)
             cameraToPlayTwo.AcquisitionFrameRate.SetValue(camFps)
@@ -161,19 +169,23 @@ def main():
         grabResultTwo = cameraToPlayTwo.RetrieveResult(camRetrievalTime, pylon.TimeoutHandling_ThrowException)
         if grabResultOne.GrabSucceeded():
             imageOne = converter.Convert(grabResultOne)
-            imgOne = imageOne.GetArray()
-
             imageTwo = converter.Convert(grabResultTwo)
+            imgOne = imageOne.GetArray()
             imgTwo = imageTwo.GetArray()
+            timeOfGrab = currentServertime();
 
-            # if camSaveImage:
-            #     multiprocessing.Process(target=imageWriter, args=(imgOne, imgTwo, grabbingCount,dataCollection, dataCollectionJson,)).start()
-            #     # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
-            # #enddef
+            if grabbingCount%camFps == 0: writeMeta(grabbingCount, metaDoc);
+            combinedImg = cv2.resize(np.concatenate((imgOne, imgTwo), axis=1), (200*2*3,150*3))
+
+            if camSaveImage:
+                multiprocessing.Process(target=imageWriter, args=(imgOne, imgTwo,combinedImg, grabbingCount,dataCollection, dataCollectionJson,timeOfGrab,)).start()
+                # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
+            #enddef
 
             if camShowImage:
-                cv2.imshow('one', cv2.resize(imgOne, (640*1,480*1)))
-                cv2.imshow('two', cv2.resize(imgTwo, (640*1,480*1)))
+                cv2.imshow('com', combinedImg)
+                # cv2.imshow('one', cv2.resize(imgOne, (640*1,480*1)))
+                # cv2.imshow('two', cv2.resize(imgTwo, (640*1,480*1)))
 
                 if cv2.waitKey(1) & 0xff == ord('q'):
                     updateStatus(999)
@@ -200,20 +212,29 @@ def main():
     cv2.destroyAllWindows()
 #enddef
 
-def imageWriter(imgOne, imgTwo, grabbingCount,dataCollection,dataCollectionJson):
+def imageWriter(imgOne, imgTwo, combinedImg, grabbingCount,dataCollection,dataCollectionJson, timeOfGrab):
     totalImages = grabbingCount
 
-    imageB64 = convertToB64(imgOne)
-    resizedB64 = convertToB64(cv2.resize(imgOne, (200*1,150*1)))
-    imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{resizedB64}' width='50%' alt='{configData['proid']} image'/></html>"
+    rotatedCombinedImg = cv2.rotate(combinedImg, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    imageB64One = convertToB64(imgOne)
+    imageB64Two = convertToB64(imgTwo)
+
+    combinedImgB64 = convertToB64(combinedImg, '.jpg')
+    # rotatedcombinedImgB64 = convertToB64(rotatedCombinedImg, '.jpg')
+
+    imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/png;base64,{combinedImgB64}' width='100%' alt='combined {configData['proid']} image'/></html>"
     imageObject = {
         "_id": totalImages,
-        "servertime": f'{currentServertime()}',
+        "servertime": f'{timeOfGrab}',
         "isCorrect": True,
         "data": [
             {
-                "pair": "single",
-                "base64": imageB64, #f"{dataCollection}/single_{totalImages}.png",
+                "pair": "1",
+                "base64": imageB64One, #f"{dataCollection}/single_{totalImages}.png",
+            },
+            {
+                "pair": "2",
+                "base64": imageB64Two, #f"{dataCollection}/single_{totalImages}.png",
             },
         ],
         "imageBoxHtml": imageBoxHtml,
@@ -229,12 +250,21 @@ def imageWriter(imgOne, imgTwo, grabbingCount,dataCollection,dataCollectionJson)
     #endwith
 
     # multiprocessing.Process(target=saveImage, args=(img, f"{dataCollection}/{totalImages}.png",)).start()
-    # cv2.imwrite(f"{dataCollection}/{totalImages}.png", img)
+    # cv2.imwrite(f"{dataCollection}/{totalImages}_one.jpg", rotatedResizedImgOne)
+    # cv2.imwrite(f"{dataCollection}/{totalImages}_two.jpg", rotatedResizedImgTwo)
+    saveImage(f"{dataCollection}/{totalImages}.jpg",rotatedCombinedImg)
     # print(f"Image {totalImages} written")
 #enddef
 
-def saveImage(img, path):
+def saveImage(path, img):
     cv2.imwrite(path, img)
+#enddef
+
+def writeMeta(count: int, path: str) -> bool:
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(str(count))
+        f.close()
+    #endwith
 #enddef
 
 def buglog(data):
@@ -294,8 +324,8 @@ def bgrConv():
     return converter
 #enddef
 
-def convertToB64(img):
-    _, imArr = cv2.imencode('.png', img)  # imArr: image in Numpy one-dim array format.
+def convertToB64(img, ext='.png'):
+    _, imArr = cv2.imencode(ext, img)  # imArr: image in Numpy one-dim array format.
     imBytes = imArr.tobytes()
     imB64 = base64.b64encode(imBytes)
     return imB64.decode("ascii")
@@ -322,7 +352,8 @@ def defaultSetting():
         "saveImage": True,
         "saveImagesFromScratch": False,
         "fps": 1,
-        "kill": False
+        "kill": False,
+        "forceHalt": True,
     }
 
     with open(settingDoc, 'w', encoding='utf-8') as f:
