@@ -11,9 +11,14 @@ import numpy as np
 import base64
 import multiprocessing
 
-configDoc = './configs/config.json'
-settingDoc = './configs/setting/ahccon.json'
-statusDoc = './configs/status/ahccon.json'
+production = False
+
+configPath = "/Configurations"
+dataPath = "/Data"
+
+configDoc = configPath if production else '.' + '/configs/config.json'
+settingDoc = configPath if production else '.' + '/configs/setting/ahccon.json'
+statusDoc = configPath if production else '.' + '/configs/status/ahccon.json'
 
 showLogs = False
 pid = None
@@ -23,7 +28,7 @@ configData = None
 
 def main():
     global pid; pid = os.getpid()
-    camIds = ["22730681"]
+    camIds = ["22730681", "22730679"]
     cams = []
 
     cams = fetchCameras(camIds)
