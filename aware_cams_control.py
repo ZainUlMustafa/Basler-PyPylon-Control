@@ -26,9 +26,9 @@ production = False
 configPath = "/Configurations"
 dataPath = "/Data"
 
-configDoc = configPath if production else '.' + '/configs/config.json'
-settingDoc = configPath if production else '.' + '/configs/setting/accon.json'
-statusDoc = configPath if production else '.' + '/configs/status/accon.json'
+configDoc = (configPath if production else '.') + '/configs/config.json'
+settingDoc = (configPath if production else '.') + '/configs/setting/accon.json'
+statusDoc = (configPath if production else '.') + '/configs/status/accon.json'
 
 showLogs = False
 pid = None
@@ -92,9 +92,9 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    dataCollection = dataPath if production else '.' + f"/data/{configData['proid']}/orig_low_res"
-    dataCollectionJson = dataPath if production else '.' + f"/data/{configData['proid']}/orig_json"
-    metaDoc = dataPath if production else '.' + f"/data/{configData['proid']}/meta.txt"
+    dataCollection = (dataPath if production else '.') + f"/data/{configData['proid']}/orig_low_res"
+    dataCollectionJson = (dataPath if production else '.') + f"/data/{configData['proid']}/orig_json"
+    metaDoc = (dataPath if production else '.') + f"/data/{configData['proid']}/meta.txt"
 
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
@@ -262,7 +262,7 @@ def saveImage(path, img):
 
 def writeMeta(count: int, path: str) -> bool:
     with open(path, 'w', encoding='utf-8') as f:
-        f.write(str(count))
+        f.write(str(count+1))
         f.close()
     #endwith
 #enddef
