@@ -13,18 +13,21 @@ import multiprocessing
 
 production = False
 
-configPath = "/Configurations"
-dataPath = "/Data"
+configPath = "../Configurations"
+dataPath = "../Data"
 
-configDoc = configPath if production else '.' + '/configs/config.json'
-settingDoc = configPath if production else '.' + '/configs/setting/ahccon.json'
-statusDoc = configPath if production else '.' + '/configs/status/ahccon.json'
+configDoc = (configPath if production else '.') + '/configs/config.json'
+settingDoc = (configPath if production else '.') + '/configs/setting/ahccon.json'
+statusDoc = (configPath if production else '.') + '/configs/status/ahccon.json'
+triggerSettingDoc = (configPath if production else '.') + '/configs/setting/ahcat.json'
 
 showLogs = False
 pid = None
 counter = 0
 prevSetting = None
 configData = None
+
+print("AHCCON - AWARE HW CAM CON")
 
 def main():
     global pid; pid = os.getpid()
@@ -71,21 +74,26 @@ def main():
     converter = bgrConv()
 
     cameraToPlayOne = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[0]))
+    cameraToPlayTwo = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[1]))
     cameraToPlayOne.Open()
+    cameraToPlayTwo.Open()
+
     cameraToPlayOne.Gain.SetValue(0)
     cameraToPlayOne.TriggerSelector.SetValue("FrameStart")
     cameraToPlayOne.TriggerMode.SetValue("On")
     cameraToPlayOne.TriggerSource.SetValue('Line1')
     cameraToPlayOne.TriggerActivation.SetValue('RisingEdge')
-    cameraToPlayOne.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
-    cameraToPlayTwo = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[0]))
-    cameraToPlayTwo.Open()
     cameraToPlayTwo.Gain.SetValue(0)
     cameraToPlayTwo.TriggerSelector.SetValue("FrameStart")
     cameraToPlayTwo.TriggerMode.SetValue("On")
     cameraToPlayTwo.TriggerSource.SetValue('Line1')
     cameraToPlayTwo.TriggerActivation.SetValue('RisingEdge')
+
+    # cameraToPlayOne.Close()
+    # cameraToPlayTwo.Close()
+
+    cameraToPlayOne.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     cameraToPlayTwo.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
     updateStatus(3)
@@ -124,12 +132,10 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill', 'forceHalt')(data)
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch', 'kill', 'forceHalt')(data)
             if camForceHalt: time.sleep(1); return;
 
-            cameraToPlayOne.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlayOne.ExposureTime.SetValue(camExposure)
-            cameraToPlayTwo.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlayTwo.ExposureTime.SetValue(camExposure)
             if (camGain <= 24.014275) and (camGain >= 0):
                 cameraToPlayOne.Gain.SetValue(camGain)
@@ -173,7 +179,8 @@ def main():
             imgTwo = imageTwo.GetArray()
             timeOfGrab = currentServertime();
 
-            if grabbingCount%camFps == 0: writeMeta(grabbingCount, metaDoc);
+            # triggerSettingData = readTriggerSetting()
+            if grabbingCount%5 == 0: writeMeta(grabbingCount, metaDoc);
             combinedImg = cv2.resize(np.concatenate((imgOne, imgTwo), axis=1), (200*2*3,150*3))
 
             if camSaveImage:
@@ -296,6 +303,14 @@ def readSetting() -> dict:
     return data;
 #enddef
 
+def readTriggerSetting() -> dict:
+    if not os.path.exists(triggerSettingDoc): return None;
+    f = open(triggerSettingDoc)
+    data = json.load(f)
+    f.close()
+    return data;
+#enddef
+
 def fetchCameras(camIds: list):
     cams = []
     for camId in camIds:
@@ -384,6 +399,7 @@ def defaultSetting(force=False):
             "showLogs": False,
             "showImage": False,
             "saveImage": True,
+            "forceHalt": False,
             "saveImagesFromScratch": False,
             "kill": False
         }
@@ -406,8 +422,9 @@ if __name__ == '__main__':
             cv2.destroyAllWindows()
             main()
         except Exception as e:
-            print(e)
-            if counter == 10: defaultSetting(); updateStatus(5)
+            print(":ejhjhe", counter)
+            print(e, counter)
+            if counter == 5: defaultSetting(force=True); updateStatus(5)
             # print("Reviving...")
             updateStatus(4)
         #endtry

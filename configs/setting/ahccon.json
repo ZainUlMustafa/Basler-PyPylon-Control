@@ -4,8 +4,9 @@
     "retrievalTime": 5000,
     "showPid": false,
     "showLogs": false,
-    "showImage": true,
+    "showImage": false,
     "saveImage": true,
+    "forceHalt": false,
     "saveImagesFromScratch": false,
-    "kill": false
+    "kill": true
 }

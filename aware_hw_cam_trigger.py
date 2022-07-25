@@ -9,8 +9,8 @@ from itsdangerous import json
 
 production = False
 
-configPath = "/Configurations"
-dataPath = "/Data"
+configPath = "../Configurations"
+dataPath = "../Data"
 
 configDoc = configPath if production else '.' + '/configs/config.json'
 settingDoc = configPath if production else '.' + '/configs/setting/ahcat.json'
@@ -64,6 +64,8 @@ def main():
         settingData = readSetting()
         camShowLogs, camPinNumber, camFps, camKill, camForceHalt = itemgetter('showLogs','pinNumber', 'fps','kill', 'forceHalt')(settingData)
         if camKill: updateStatus(999); killMe()
+        configData = readConfig()
+        if not doesConfigContainsValidInfo(configData): return;
         endTime = time.time()
         print(f"Total time taken this loop: {(endTime - startTime)*1000} ms")
     #endwhile
