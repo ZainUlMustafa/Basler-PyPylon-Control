@@ -7,6 +7,5 @@
     "showImage": true,
     "saveImage": true,
     "saveImagesFromScratch": false,
-    "fps": 5,
     "kill": false
 }
