@@ -44,7 +44,7 @@ async function processing() {
     }
 
     // access the meta.txt
-    var metaData = fs.readFileSync(`${dataPath}/data/${proid}/meta.txt`, { encoding: 'utf8' });
+    // var metaData = fs.readFileSync(`${dataPath}/data/${proid}/meta.txt`, { encoding: 'utf8' });
     var procMetaData = "0"
 
     const procMetaDoc = `${dataPath}/data/${proid}/proc_meta.txt`
@@ -56,7 +56,7 @@ async function processing() {
 
     }
 
-    const targetToAchieve = Number(metaData) //45
+    const targetToAchieve = getImageCount(`${dataPath}/data/${proid}/meta.txt`)-1; //45
     updateStatus(4)
 
     var grabbingCount = Number(procMetaData) //0
@@ -72,6 +72,8 @@ async function processing() {
         const imageJsonPath = `/data/${proid}/orig_json/${grabbingCount}.json`;
         const lowResImagePath = `/data/${proid}/orig_low_res/${grabbingCount}.jpg`;
         // console.log(grabbingCount, "grab");
+       const geoResp =  await axios.get('http://localhost:3100/getBestGeoTime?tmq=1658620447300&proid=200&diffAllowedMs=11');
+
         await axios.post('http://localhost:4000/imagesPath', {
             imageId: grabbingCount,
             imageDirectory: imageJsonPath,
@@ -131,6 +133,14 @@ function sleep(time, callback) {
     var stop = new Date().getTime();
     while (new Date().getTime() < stop + time);
     callback();
+}
+
+async function getImageCount(dir) {
+    const meta = fs.readFileSync(`${dir}`, { encoding: 'utf8' });
+    const metaList = meta.toString().trim().split('\n');
+    const lastIndexMeta = metaList[metaList.length - 1];
+    const imageCount = lastIndexMeta.split(',')[0];
+    return imageCount ? Number(imageCount) : 0;
 }
 
 async function main() {

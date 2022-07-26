@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import time
 
-inputPath = ['./data/100/orig_json','./data/100/orig_low_res']
+inputPath = ['./data/62d690207384085634ff9848/orig_json','./data/62d690207384085634ff9848/orig_low_res']
 outputPath = ['./data/200/orig_json','./data/200/orig_low_res']
 def main():
     if not os.path.exists(outputPath[0]):
