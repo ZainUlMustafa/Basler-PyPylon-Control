@@ -1,13 +1,3 @@
-'''
-AWARE CAM CONTROL [ACCON]
-This is a specially designed camera booter that runs and auto tries to run camera
-and fetch the required info. It is crash-safe which enables it to revive again and
-again.
-
-ACCON uses settingDoc.json as strategy definer within which camera control properties can
-be defined.
-'''
-
 import hashlib
 import json
 from operator import itemgetter
@@ -23,18 +13,21 @@ import multiprocessing
 
 production = False
 
-configPath = "/Configurations"
-dataPath = "/Data"
+configPath = "../Configurations"
+dataPath = "../Data"
 
 configDoc = (configPath if production else '.') + '/configs/config.json'
-settingDoc = (configPath if production else '.') + '/configs/setting/accon.json'
-statusDoc = (configPath if production else '.') + '/configs/status/accon.json'
+settingDoc = (configPath if production else '.') + '/configs/setting/ahccon.json'
+statusDoc = (configPath if production else '.') + '/configs/status/ahccon.json'
+triggerSettingDoc = (configPath if production else '.') + '/configs/setting/ahcat.json'
 
 showLogs = False
 pid = None
 counter = 0
 prevSetting = None
 configData = None
+
+print("AHCCON - AWARE HW CAM CON")
 
 def main():
     global pid; pid = os.getpid()
@@ -46,9 +39,7 @@ def main():
     #endif
 
     global configData
-    f = open(configDoc)
-    configData = json.load(f)
-    f.close()
+    configData = readConfig()
 
     if not os.path.exists(settingDoc):
         updateStatus(-3)
@@ -63,9 +54,7 @@ def main():
 
     updateStatus(1)
     while len(cams) != len(camIds): 
-        f = open(settingDoc)
-        data = json.load(f)
-        f.close()
+        data = readSetting()
         if data['kill']:
             updateStatus(999)
             os.kill(pid, signal.SIGTERM)
@@ -81,15 +70,32 @@ def main():
         print(cams)
     #endwhile
 
+    cams = fetchCameras(camIds)
     converter = bgrConv()
-    cameraToPlayOne = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[0]))
-    cameraToPlayOne.Open()
-    cameraToPlayOne.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
+    cameraToPlayOne = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[0]))
     cameraToPlayTwo = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateDevice(cams[1]))
+    cameraToPlayOne.Open()
     cameraToPlayTwo.Open()
+
+    cameraToPlayOne.Gain.SetValue(0)
+    cameraToPlayOne.TriggerSelector.SetValue("FrameStart")
+    cameraToPlayOne.TriggerMode.SetValue("On")
+    cameraToPlayOne.TriggerSource.SetValue('Line1')
+    cameraToPlayOne.TriggerActivation.SetValue('RisingEdge')
+
+    cameraToPlayTwo.Gain.SetValue(0)
+    cameraToPlayTwo.TriggerSelector.SetValue("FrameStart")
+    cameraToPlayTwo.TriggerMode.SetValue("On")
+    cameraToPlayTwo.TriggerSource.SetValue('Line1')
+    cameraToPlayTwo.TriggerActivation.SetValue('RisingEdge')
+
+    # cameraToPlayOne.Close()
+    # cameraToPlayTwo.Close()
+
+    cameraToPlayOne.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     cameraToPlayTwo.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-    # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
+
     updateStatus(3)
 
     dataCollection = (dataPath if production else '.') + f"/data/{configData['proid']}/orig_low_res"
@@ -103,6 +109,7 @@ def main():
         os.makedirs(dataCollectionJson)
     #endif
 
+    grabbingCount = numberOfFiles(dataCollectionJson)
     grabbingCount = numberOfFiles(dataCollectionJson)
     while cameraToPlayOne.IsGrabbing() and cameraToPlayTwo.IsGrabbing():
         startTime = time.time()
@@ -125,12 +132,10 @@ def main():
             data = json.load(f)
             f.close()
             
-            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camFps, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch','fps', 'kill', 'forceHalt')(data)
+            camExposure, camGain, camLogs, camPid, camRetrievalTime, camShowImage, camSaveImage, camSaveImagesFromScratch, camKill, camForceHalt = itemgetter('exposure', 'gain', 'showLogs', 'showPid', 'retrievalTime', 'showImage','saveImage', 'saveImagesFromScratch', 'kill', 'forceHalt')(data)
             if camForceHalt: time.sleep(1); return;
 
-            cameraToPlayOne.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlayOne.ExposureTime.SetValue(camExposure)
-            cameraToPlayTwo.AcquisitionFrameRate.SetValue(camFps)
             cameraToPlayTwo.ExposureTime.SetValue(camExposure)
             if (camGain <= 24.014275) and (camGain >= 0):
                 cameraToPlayOne.Gain.SetValue(camGain)
@@ -174,7 +179,8 @@ def main():
             imgTwo = imageTwo.GetArray()
             timeOfGrab = currentServertime();
 
-            if grabbingCount%camFps == 0: writeMeta(grabbingCount, metaDoc);
+            # triggerSettingData = readTriggerSetting()
+            if grabbingCount%5 == 0: writeMeta(grabbingCount, metaDoc);
             combinedImg = cv2.resize(np.concatenate((imgOne, imgTwo), axis=1), (200*2*3,150*3))
 
             if camSaveImage:
@@ -273,38 +279,39 @@ def buglog(data):
     #endif
 #enddef
 
-def updateStatus(status):
-    camStatuses = {
-        999: "Ended",
-        7: "First frame grabbed",
-        6: "Setting applied",
-        5: "Setting file created automatically",
-        4: "Camera reviving",
-        3: "Camera initiated",
-        2: "Camera found",
-        1: "Waiting for camera",
-        0: "Script started",
-        -1: "Camera not found",
-        -2: "Camera exception",
-        -3: "Setting not found",
-        -4: "Config not found",
-        -5: "Frame grabbing failed",
-        -999: "Unexpected error"
-    }
-
-    statusData = {
-        'status': status,
-        'message': camStatuses[status],
-    }
-
-    with open(statusDoc, 'w', encoding='utf-8') as f:
-        json.dump(statusData, f, ensure_ascii=False, indent=4)
-    #endwith
-
-    print(statusData)
+def readConfig() -> dict:
+    if not os.path.exists(configDoc): return None;
+    f = open(configDoc)
+    data = json.load(f)
+    f.close()
+    return data;
 #enddef
 
-def fetchCameras(camIds):
+def readStatus() -> dict:
+    if not os.path.exists(statusDoc): return None;
+    f = open(statusDoc)
+    data = json.load(f)
+    f.close()
+    return data;
+#enddef
+
+def readSetting() -> dict:
+    if not os.path.exists(settingDoc): return None;
+    f = open(settingDoc)
+    data = json.load(f)
+    f.close()
+    return data;
+#enddef
+
+def readTriggerSetting() -> dict:
+    if not os.path.exists(triggerSettingDoc): return None;
+    f = open(triggerSettingDoc)
+    data = json.load(f)
+    f.close()
+    return data;
+#enddef
+
+def fetchCameras(camIds: list):
     cams = []
     for camId in camIds:
         for cam in pylon.TlFactory.GetInstance().EnumerateDevices():
@@ -341,27 +348,73 @@ def numberOfFiles(dir):
     return numberFiles
 #enddef
 
-def defaultSetting():
-    settingData = {
-        "exposure": 10900,
-        "gain": 0,
-        "retrievalTime": 5000,
-        "showPid": False,
-        "showLogs": False,
-        "showImage": True,
-        "saveImage": True,
-        "saveImagesFromScratch": False,
-        "fps": 1,
-        "kill": False,
-        "forceHalt": True,
+def updateStatus(status):
+    allStatuses = {
+        999: "Ended",
+        7: "First frame grabbed",
+        6: "Setting applied",
+        5: "Setting file created automatically",
+        4: "Camera reviving",
+        3: "Camera initiated",
+        2: "Camera found",
+        1: "Waiting for camera",
+        0: "Script started",
+        -1: "Camera not found",
+        -2: "Camera exception",
+        -3: "Setting not found",
+        -4: "Config not found",
+        -5: "Frame grabbing failed",
+        -999: "Unexpected error"
     }
 
-    with open(settingDoc, 'w', encoding='utf-8') as f:
-        json.dump(settingData, f, ensure_ascii=False, indent=4)
+    statusData = {
+        'status': status,
+        'message': allStatuses[status],
+    }
+
+    with open(statusDoc, 'w', encoding='utf-8') as f:
+        json.dump(statusData, f, ensure_ascii=False, indent=4)
     #endwith
+
+    print(statusData)
 #enddef
 
-if __name__ == "__main__":
+def defaultSetting(force=False):
+    existingSettingData = None
+    if not force:
+        try:
+            existingSettingData = readSetting()
+            if existingSettingData['kill'] == True: existingSettingData = None
+        except:
+            existingSettingData = None
+        #endif
+    #endif
+
+    if existingSettingData is None:
+        settingData = {
+            "exposure": 10900,
+            "gain": 0,
+            "retrievalTime": 5000,
+            "showPid": False,
+            "showLogs": False,
+            "showImage": False,
+            "saveImage": True,
+            "forceHalt": False,
+            "saveImagesFromScratch": False,
+            "kill": False
+        }
+
+        with open(settingDoc, 'w', encoding='utf-8') as f:
+            json.dump(settingData, f, ensure_ascii=False, indent=4)
+        #endwith
+
+        updateStatus(4)
+    #endif
+#enddef
+
+if __name__ == '__main__':
+    # cv2.destroyAllWindows()
+    # main()
     updateStatus(0)
     defaultSetting()
     while True:
@@ -369,8 +422,9 @@ if __name__ == "__main__":
             cv2.destroyAllWindows()
             main()
         except Exception as e:
-            print(e)
-            if counter == 10: defaultSetting(); updateStatus(5)
+            print(":ejhjhe", counter)
+            print(e, counter)
+            if counter == 5: defaultSetting(force=True); updateStatus(5)
             # print("Reviving...")
             updateStatus(4)
         #endtry
@@ -378,4 +432,3 @@ if __name__ == "__main__":
         counter += 1
     #endwhile
 #endif
-

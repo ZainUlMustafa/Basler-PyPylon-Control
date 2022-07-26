@@ -22,11 +22,14 @@ import multiprocessing
 
 import cv2
 
-configPath  = '.'
-dataPath = '.'
-configDoc = configPath + '/configs/config.json'
-settingDoc = configPath + '/configs/setting/accon.json'
-statusDoc = configPath + '/configs/status/accon.json'
+production = False
+
+configPath = "/Configurations"
+dataPath = "/Data"
+
+configDoc = configPath if production else '.' + '/configs/config.json'
+settingDoc = configPath if production else '.' + '/configs/setting/accon.json'
+statusDoc = configPath if production else '.' + '/configs/status/accon.json'
 
 showLogs = False
 pid = None
@@ -94,9 +97,9 @@ def main():
     # print(f"{cam.GetSerialNumber()}: [Cameras opened]")
     updateStatus(3)
 
-    dataCollection = f"{dataPath}/data/{configData['proid']}/orig_low_res"
-    dataCollectionJson = f"{dataPath}/data/{configData['proid']}/orig_json"
-    metaDoc = f"{dataPath}/data/{configData['proid']}/meta.txt"
+    dataCollection = dataPath if production else '.' + f"/data/{configData['proid']}/orig_low_res"
+    dataCollectionJson = dataPath if production else '.' + f"/data/{configData['proid']}/orig_json"
+    metaDoc = dataPath if production else '.' + f"/data/{configData['proid']}/meta.txt"
 
     if not os.path.exists(dataCollection):
         os.makedirs(dataCollection)
@@ -183,7 +186,7 @@ def main():
 
             if camSaveImage:
                 multiprocessing.Process(target=imageWriter, args=(img, grabbingCount,dataCollection, dataCollectionJson,timeOfGrab,)).start()
-                # imageWriter(img, grabbingCount,dataCollection, dataCollectionJson);
+                # imageWriter(img, grabbingCou"appended text"nt,dataCollection, dataCollectionJson);
             #enddef
 
             if camShowImage:
@@ -222,7 +225,7 @@ def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson, timeOfGrab
     lowResB64 = convertToB64(resizedImg, '.jpg')
     # lowResRotB64 = convertToB64(rotatedResizedImg, '.jpg')
     
-    # imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/jpg;base64,{lowResB64}' width='100%' alt='{configData['proid']} image'/></html>"
+    imageBoxHtml = f"<!DOCTYPE html><html><img src='data:image/jpg;base64,{lowResB64}' width='100%' alt='{configData['proid']} image'/></html>"
     imageObject = {
         "_id": totalImages,
         "servertime": f'{timeOfGrab}',
@@ -234,7 +237,7 @@ def imageWriter(img, grabbingCount,dataCollection,dataCollectionJson, timeOfGrab
                 "lowResImage": f"{dataCollection}/{totalImages}.png" # path to low res image
             },
         ],
-        # "imageBoxHtml": imageBoxHtml,
+        "imageBoxHtml": imageBoxHtml,
         "proid": configData['proid']
     }
 
@@ -281,9 +284,18 @@ def doesConfigContainsValidInfo(data):
     return False
 #enddef
 
+def readStatus() -> dict:
+    if not os.path.exists(statusDoc): return None;
+    f = open(statusDoc)
+    data = json.load(f)
+    f.close()
+    return data;
+#enddef
+
 def updateStatus(status):
-    camStatuses = {
+    allStatuses = {
         999: "Ended",
+        8: "Image file saved",
         7: "First frame grabbed",
         6: "Setting applied",
         5: "Setting file created automatically",
@@ -301,14 +313,22 @@ def updateStatus(status):
         -999: "Unexpected error"
     }
 
+    prevStatusData = readStatus()
+    prevMd5Hash = hashlib.md5(json.dumps(prevStatusData).encode('utf-8')).hexdigest()
+
     statusData = {
         'status': status,
-        'message': camStatuses[status],
+        'message': allStatuses[status],
     }
 
-    with open(statusDoc, 'w', encoding='utf-8') as f:
-        json.dump(statusData, f, ensure_ascii=False, indent=4)
-    #endwith
+    md5Hash = hashlib.md5(json.dumps(statusData).encode('utf-8')).hexdigest()
+
+    # print(prevMd5Hash != md5Hash)
+    if prevMd5Hash != md5Hash:
+        with open(statusDoc, 'w', encoding='utf-8') as f:
+            json.dump(statusData, f, ensure_ascii=False, indent=4)
+        #endwith
+    #endif
 
     print(statusData)
 #enddef

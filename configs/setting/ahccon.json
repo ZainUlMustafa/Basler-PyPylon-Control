@@ -4,9 +4,9 @@
     "retrievalTime": 5000,
     "showPid": false,
     "showLogs": false,
-    "showImage": true,
+    "showImage": false,
     "saveImage": true,
+    "forceHalt": false,
     "saveImagesFromScratch": false,
-    "fps": 5,
-    "kill": false
+    "kill": true
 }
