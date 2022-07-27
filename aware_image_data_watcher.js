@@ -79,9 +79,11 @@ async function processing() {
         }
         const imageJsonPath = `/data/${proid}/orig_json/${grabbingCount}.json`;
         const lowResImagePath = `/data/${proid}/orig_low_res/${grabbingCount}.jpg`;
-        console.log(grabbingCount, await getImageTimestamp(grabbingCount, metaDoc))
+        const grabTimestamp = await getImageTimestamp(grabbingCount, metaDoc)
+        // console.log(grabbingCount, grabTimestamp)
         // console.log(grabbingCount, "grab");
-        // const geoResp = await axios.get('http://localhost:3100/getBestGeoTime?tmq=1658620447300&proid=200&diffAllowedMs=11');
+        const geoResp = await axios.get(`http://localhost:3100/getBestGeoTime?tmq=${grabTimestamp}&proid=${proid}&diffAllowedMs=11`);
+        console.log(geoResp.data);
 
         // await axios.post('http://localhost:4000/imagesPath', {
         //     imageId: grabbingCount,
