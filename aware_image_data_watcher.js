@@ -83,19 +83,22 @@ async function processing() {
         // console.log(grabbingCount, grabTimestamp)
         // console.log(grabbingCount, "grab");
         const geoResp = await axios.get(`http://localhost:3100/getBestGeoTime?tmq=${grabTimestamp}&proid=${proid}&diffAllowedMs=11`);
-        console.log(geoResp.data);
-
-        // await axios.post('http://localhost:4000/imagesPath', {
-        //     imageId: grabbingCount,
-        //     imageDirectory: imageJsonPath,
-        //     proid,
-        //     lrImageDirectory: lowResImagePath,
-
-        // });
+        // console.log(geoResp.data);
+        const geoLat = geoResp.data.responseMsg.data.geo.lat;
+        const geoLong = geoResp.data.responseMsg.data.geo.long;
+        console.log(grabbingCount)
+        await axios.post('http://localhost:4000/imagesPath', {
+            imageId: grabbingCount,
+            imageDirectory: imageJsonPath,
+            proid,
+            lrImageDirectory: lowResImagePath,
+            gpsLat:geoLat,
+            gpsLong:geoLong,
+        });
         // var imageJsonData = fs.readFileSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
 
         //  begin to achieve the target
-        sleep(sleeper, function () { });
+        // sleep(sleeper, function () { });
         updateProcMeta(grabbingCount, procMetaDoc)
         grabbingCount += 1
         var stop = new Date().getTime();
