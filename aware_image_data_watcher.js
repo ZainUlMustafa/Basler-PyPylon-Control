@@ -56,14 +56,22 @@ async function processing() {
 
     }
 
-    const targetToAchieve = getImageCount(`${dataPath}/data/${proid}/meta.txt`)-1; //45
-    updateStatus(4)
+    const metaDoc = `${dataPath}/data/${proid}/meta.txt`
+    const targetToAchieve = await getImageCount(metaDoc); //45
+    // bugLog(targetToAchieve)
 
     var grabbingCount = Number(procMetaData) //0
+    if (grabbingCount === targetToAchieve) {
+        updateStatus(5)
+        sleep(sleeper, function () { }); 
+        return
+    }
+
+    updateStatus(4);
     bugLog(`Starting from: ${grabbingCount}`)
 
     // if (grabbingCount < targetToAchieve) updateStatus(1)
-    while (grabbingCount < targetToAchieve) {
+    while (grabbingCount <= targetToAchieve) {
         var start = new Date().getTime();
         if (!fs.existsSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`)) {
             sleep(sleeper, function () { });
@@ -71,22 +79,23 @@ async function processing() {
         }
         const imageJsonPath = `/data/${proid}/orig_json/${grabbingCount}.json`;
         const lowResImagePath = `/data/${proid}/orig_low_res/${grabbingCount}.jpg`;
+        console.log(grabbingCount, await getImageTimestamp(grabbingCount, metaDoc))
         // console.log(grabbingCount, "grab");
-       const geoResp =  await axios.get('http://localhost:3100/getBestGeoTime?tmq=1658620447300&proid=200&diffAllowedMs=11');
+        // const geoResp = await axios.get('http://localhost:3100/getBestGeoTime?tmq=1658620447300&proid=200&diffAllowedMs=11');
 
-        await axios.post('http://localhost:4000/imagesPath', {
-            imageId: grabbingCount,
-            imageDirectory: imageJsonPath,
-            proid,
-            lrImageDirectory: lowResImagePath,
+        // await axios.post('http://localhost:4000/imagesPath', {
+        //     imageId: grabbingCount,
+        //     imageDirectory: imageJsonPath,
+        //     proid,
+        //     lrImageDirectory: lowResImagePath,
 
-        });
-        var imageJsonData = fs.readFileSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
+        // });
+        // var imageJsonData = fs.readFileSync(`${dataPath}/data/${proid}/orig_json/${grabbingCount}.json`, { encoding: 'utf8' });
 
         //  begin to achieve the target
         sleep(sleeper, function () { });
-        grabbingCount += 1
         updateProcMeta(grabbingCount, procMetaDoc)
+        grabbingCount += 1
         var stop = new Date().getTime();
 
         // sleep(sleeper, function () { });
@@ -103,6 +112,7 @@ function updateProcMeta(count, path) {
 function updateStatus(status) {
     const allStatuses = {
         "999": "Ended",
+        "5": "Waiting for new target",
         "4": "Reading new target",
         "3": "Image watcher reviving",
         "2": "Image saved on db",
@@ -141,6 +151,14 @@ async function getImageCount(dir) {
     const lastIndexMeta = metaList[metaList.length - 1];
     const imageCount = lastIndexMeta.split(',')[0];
     return imageCount ? Number(imageCount) : 0;
+}
+
+async function getImageTimestamp(imageCount, dir) {
+    const meta = fs.readFileSync(`${dir}`, { encoding: 'utf8' });
+    const metaList = meta.toString().trim().split('\n');
+    const lastIndexMeta = metaList[imageCount];
+    const imageTimestamp = lastIndexMeta.split(',')[1];
+    return imageTimestamp ? Number(imageTimestamp) : 0;
 }
 
 async function main() {

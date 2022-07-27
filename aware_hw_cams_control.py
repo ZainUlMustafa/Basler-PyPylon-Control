@@ -180,7 +180,7 @@ def main():
             timeOfGrab = currentServertime();
 
             # triggerSettingData = readTriggerSetting()
-            if grabbingCount%5 == 0: writeMeta(grabbingCount, metaDoc);
+            if grabbingCount%1 == 0: writeMeta(grabbingCount, metaDoc, timeOfGrab);
             combinedImg = cv2.resize(np.concatenate((imgOne, imgTwo), axis=1), (200*2*3,150*3))
 
             if camSaveImage:
@@ -266,9 +266,9 @@ def saveImage(path, img):
     cv2.imwrite(path, img)
 #enddef
 
-def writeMeta(count: int, path: str) -> bool:
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(str(count+1))
+def writeMeta(imageId: int, path: str, timestamp: int) -> bool:
+    with open(path, 'a', encoding='utf-8') as f:
+        f.write(f"{imageId},{timestamp}\n")
         f.close()
     #endwith
 #enddef

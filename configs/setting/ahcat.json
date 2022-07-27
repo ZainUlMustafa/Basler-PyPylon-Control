@@ -1,7 +1,7 @@
 {
     "fps": 1,
     "kill": false,
-    "forceHalt": false,
+    "forceHalt": true,
     "showLogs": true,
     "pinNumber": 7
 }

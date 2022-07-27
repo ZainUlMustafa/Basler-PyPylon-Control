@@ -8,5 +8,5 @@
     "saveImage": true,
     "forceHalt": false,
     "saveImagesFromScratch": false,
-    "kill": true
+    "kill": false
 }
